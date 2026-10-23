@@ -1,0 +1,29 @@
+name: plugin-release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build plugin zip
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/crystal-grinder-*.zip
+          body: |
+            Decaid plugin for CRYSTAL grinders.
+
+            Requires Decaid 0.9.1-beta.1 or newer (BLE plugin support).
+
+            Install: Dashboard → Plugins → ⋮ → Install plugin → ZIP file.

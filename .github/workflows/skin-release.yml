@@ -1,0 +1,27 @@
+name: skin-release
+
+on:
+  push:
+    tags: ['skin-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build skin zip
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/streamline-crystal-*.zip
+          body: |
+            CRYSTAL grinder panel on top of the official streamline.js skin.
+
+            Install: Settings → Skins → install → pick the ZIP (or paste this release asset URL).

@@ -1,0 +1,35 @@
+{
+  "id": "com.crystal.grinder",
+  "author": "CRYSTAL",
+  "name": "CRYSTAL Grinder",
+  "description": "Connects a CRYSTAL grinder (ESP32-S3, service 7fa2d10c-12f3-4b9e-9d77-1a9b65432100) over BLE and exposes start/stop, grind setting and motor RPM to Decaid.",
+  "version": "0.2.0",
+  "apiVersion": 1,
+  "permissions": ["log", "api", "transport.ble"],
+  "drivers": [
+    {
+      "id": "crystal",
+      "type": "grinder",
+      "capabilities": ["startStop", "grindSetting", "rpmControl"],
+      "controls": {
+        "grindSetting": { "kind": "numeric", "min": 0, "max": 1500, "step": 1 },
+        "rpmControl": { "kind": "numeric", "min": 0, "max": 1500, "step": 1 }
+      },
+      "ble": { "match": { "name": { "prefix": "CRYSTAL-" } } }
+    }
+  ],
+  "api": [
+    { "id": "status", "type": "http", "data": {} },
+    { "id": "feed", "type": "http", "data": {} },
+    { "id": "start", "type": "http", "data": {} }
+  ],
+  "settings": {
+    "startMode": {
+      "type": "enum",
+      "label": "启动方式",
+      "values": ["智能（自动启停）", "手动", "定时"],
+      "default": "智能（自动启停）",
+      "description": "「开始研磨」写入的启动项：智能 = 3、手动 = 1、定时 = 2。定时模式的时长由磨豆机内部设定，Decaid 不发送时长。"
+    }
+  }
+}

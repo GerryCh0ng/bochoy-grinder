@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>CRYSTAL Control</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <span class="mark">CRYSTAL</span>
+      <span class="sub">Decaid control</span>
+    </div>
+    <div class="pills">
+      <span class="pill" id="grinder-pill"><i></i><span id="grinder-pill-text">磨豆机</span></span>
+      <span class="pill" id="machine-pill"><i></i><span id="machine-pill-text">咖啡机</span></span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card grinder">
+      <div class="card-head">
+        <h2>磨豆机</h2>
+        <span class="state" id="grinder-state">—</span>
+      </div>
+
+      <div class="hero">
+        <div class="hero-value" id="setting-hero">—</div>
+        <div class="hero-label">当前研磨度 <small>0–1500</small></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="start">开始研磨</button>
+        <button class="btn danger" id="stop">停止</button>
+      </div>
+
+      <div class="control">
+        <label for="setting">研磨度</label>
+        <div class="row">
+          <button class="step" data-step="-10" data-target="setting">−</button>
+          <input id="setting" type="number" min="0" max="1500" step="1" inputmode="numeric" />
+          <button class="step" data-step="10" data-target="setting">+</button>
+          <button class="btn" id="apply-setting">设定</button>
+        </div>
+      </div>
+
+      <div class="control">
+        <label for="rpm">转速 <small>当前 <span id="rpm-now">—</span> · 0–1500</small></label>
+        <div class="row">
+          <button class="step" data-step="-50" data-target="rpm">−</button>
+          <input id="rpm" type="number" min="0" max="1500" step="1" inputmode="numeric" />
+          <button class="step" data-step="50" data-target="rpm">+</button>
+          <button class="btn" id="apply-rpm">设定</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card machine">
+      <div class="card-head">
+        <h2>咖啡机</h2>
+        <span class="state" id="machine-state">—</span>
+      </div>
+
+      <div class="hero">
+        <div class="hero-value machine-value" id="machine-hero">—</div>
+        <div class="hero-label">咖啡机状态</div>
+      </div>
+
+      <div class="readout">
+        <div class="metric">
+          <span class="label">冲煮头温度</span>
+          <span class="value"><span id="group-temp">—</span><small>°C</small></span>
+        </div>
+        <div class="metric">
+          <span class="label">目标温度</span>
+          <span class="value"><span id="target-temp">—</span><small>°C</small></span>
+        </div>
+        <div class="metric">
+          <span class="label">压力</span>
+          <span class="value"><span id="pressure">—</span><small>bar</small></span>
+        </div>
+        <div class="metric">
+          <span class="label">流量</span>
+          <span class="value"><span id="flow">—</span><small>ml/s</small></span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="brew">开始萃取</button>
+        <button class="btn danger" id="machine-idle">停止</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="log">
+    <span class="log-title">事件</span>
+    <ol id="events"></ol>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
