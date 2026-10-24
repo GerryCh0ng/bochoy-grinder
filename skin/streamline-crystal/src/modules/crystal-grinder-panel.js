@@ -14,6 +14,10 @@ const PLUGIN = `${API}/api/v1/plugins/com.crystal.grinder`;
 const SLOTS = 10;
 const STORE_KEY = 'crystal-recipes-v1';
 const POS_KEY = 'crystal-panel-pos-v2';
+// Decaid's server-side store: unlike localStorage this is not tied to the skin's
+// origin/port, so another CRYSTAL skin (or a reinstall) reads the same recipes.
+const KV_NAMESPACE = 'crystalGrinder';
+const KV_RECIPES = 'recipes';
 
 // Factory defaults for a fresh install: grind 500, bean feed 20, rpm 800.
 const DEFAULTS = { grind: 500, rpm: 800, feed: 20, mode: 'auto', bindId: '', bindName: '', instant: false };
@@ -174,11 +178,52 @@ function loadRecipes() {
 }
 
 function saveRecipes() {
+    const payload = { index: state.index, recipes: state.recipes };
     try {
-        localStorage.setItem(STORE_KEY, JSON.stringify({ index: state.index, recipes: state.recipes }));
+        localStorage.setItem(STORE_KEY, JSON.stringify(payload));
     } catch (error) {
         console.warn('[crystal] could not save recipes', error);
     }
+    pushRecipes(payload);
+}
+
+function pushRecipes(payload) {
+    try {
+        fetch(`${API}/api/v1/store/${KV_NAMESPACE}/${KV_RECIPES}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true
+        }).catch(() => {});
+    } catch { /* offline is fine, localStorage still has it */ }
+}
+
+async function hydrateRecipes() {
+    try {
+        const response = await fetch(`${API}/api/v1/store/${KV_NAMESPACE}/${KV_RECIPES}`);
+        if (!response.ok) return;
+        const remote = await response.json();
+        // A skin that already has local recipes keeps them (and republishes);
+        // only a fresh origin - a new skin, or a cleared WebView - adopts the
+        // server copy. This is what makes a second skin inherit the first one.
+        if (localStorage.getItem(STORE_KEY)) {
+            pushRecipes({ index: state.index, recipes: state.recipes });
+            return;
+        }
+        if (!remote || !Array.isArray(remote.recipes)) {
+            pushRecipes({ index: state.index, recipes: state.recipes });
+            return;
+        }
+        state.index = Number.isInteger(remote.index) ? Math.min(SLOTS - 1, Math.max(0, remote.index)) : 0;
+        remote.recipes.slice(0, SLOTS).forEach((item, i) => {
+            state.recipes[i] = { ...state.recipes[i], ...item };
+        });
+        try {
+            localStorage.setItem(STORE_KEY, JSON.stringify({ index: state.index, recipes: state.recipes }));
+        } catch { /* non-fatal */ }
+        render();
+        syncTile(recipe().grind);
+    } catch { /* older Decaid without /store, or offline */ }
 }
 
 function loadPosition() {
@@ -801,6 +846,7 @@ function init() {
 
     loadRecipes();
     render();
+    hydrateRecipes();
 
     // Test hook: open the editor straight away (?crystal-dialog=1).
     if (new URLSearchParams(location.search).get('crystal-dialog') === '1') {

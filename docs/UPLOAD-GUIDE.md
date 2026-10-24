@@ -4,7 +4,7 @@
 
 | 文件 | 用途 |
 |---|---|
-| `publish/` | **仓库源码**：207 个文件，7.1 MB，整个文件夹拖进仓库即可 |
+| `publish/` | **仓库源码**：209 个文件，7.1 MB，整个文件夹拖进仓库即可 |
 | `dist/crystal-grinder-0.2.0.zip` | 插件包 → 作为 Release 附件 |
 | `dist/streamline-crystal-0.2.17-crystal.1.zip` | 皮肤包 → 作为 Release 附件 |
 | `dist/crystal-grinder-repo-source.zip` | 上面 `publish/` 的压缩版，备用 |

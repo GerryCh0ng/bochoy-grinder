@@ -1,107 +1,136 @@
-# CRYSTAL 磨豆机 × Decaid
+# CRYSTAL Grinder for Decaid
 
-CRYSTAL 磨豆机的 Decaid 插件、接口定义和控制皮肤。
+A [Decaid](https://github.com/decentespresso/decaid) plugin and skin that connect a **CRYSTAL
+grinder** (ESP32-S3, BLE) and put its controls on the machine's screen next to the espresso
+machine: grind setting, motor RPM, bean-feed gate, start mode and start/stop.
 
-![CRYSTAL 浮动控制窗](docs/screenshots/floating-panel.png)
+![CRYSTAL panel](docs/screenshots/panel-en.png)
 
-## 目录
+## Features
+
+**Plugin**
+
+- Connects over BLE to the CRYSTAL service `7fa2d10c-12f3-4b9e-9d77-1a9b65432100`, matching
+  devices advertised as `CRYSTAL-xxxx`
+- Publishes the grinder as a standard Decaid grinder: `startStop`, `grindSetting`, `rpmControl`
+- Grind `0-1500`, RPM `0-1500`
+- Vendor endpoints the host contract has no field for:
+  - `GET|POST /api/v1/plugins/com.crystal.grinder/feed` - bean-feed gate `XD_RPM`, `0-150`
+  - `POST /api/v1/plugins/com.crystal.grinder/start` - `{"mode":"manual"|"timer"|"auto"}` -> `BOOT_SIGN` 1/2/3
+  - `GET /api/v1/plugins/com.crystal.grinder/status` - connection state and current values
+
+**Skin** (`streamline-crystal`)
+
+- The official streamline.js skin with a compact **floating panel** in the top-right corner
+- Draggable; remembers its position
+- 10 recipes: swipe left/right or use the arrow buttons to page
+- Tap the large grind number to edit: 40 px nudge buttons, hold to repeat, per-field step sizes
+- Shows grinder state from `SYS_STATE` (idle / grinding / offline)
+- Follows the active espresso profile: recipes bound to a profile are selected and pushed
+  automatically when the machine switches profile
+- Grind value syncs to the skin's Grind tile and the active workflow
+- English and Chinese, following the skin language; defaults to English
+
+## Requirements
+
+- **Decaid 0.9.1-beta.1 or newer** - the first release with the plugin BLE driver
+  (`transport.ble`, `host.devices.bindDriver`)
+- CRYSTAL grinder firmware exposing the service above (the `bleRPM` implementation)
+- No pairing needed: the firmware does not enforce encrypted GATT access. If a future firmware
+  does, the host needs a pairing call, which this plugin cannot provide.
+
+## Install
+
+**Plugin** - download `crystal-grinder-<version>.zip` from Releases, then:
 
 ```
-crystal-grinder/
-  crystal-grinder.reaplugin/     插件包（安装这个）
-    manifest.json                驱动声明、控制范围、设置项、厂商接口
-    plugin.js                    BLE 协议实现
-    README.md
-  skin/
-    streamline-crystal/          官方 streamline.js 的分支 + 磨豆机控制条（当前在用）
-      index.html                 原皮肤，只多两行引用
-      src/modules/crystal-grinder-panel.js   控制条 + 编辑弹窗
-      src/css/crystal-grinder.css
-      skin-manifest.json
-    crystal-grinder-ui/          早期独立皮肤（保留作参考，未启用）
-  docs/
-    PUBLISH.md                   怎么发布给客户/要不要找官方/发布检查清单
-    INSTALL.md                   Decaid 桌面版、插件、皮肤的安装位置与验证记录
-    PROTOCOL.md                  BLE 协议实现口径 + 待确认问题
-    INTERFACE.md                 给 skin 用的 REST / WS 接口
-    screenshots/                 实机截图
-  test/
-    fake-host.mjs                假 GATT + 假插件宿主
-    manifest.test.mjs            清单契约检查（7 条）
-    plugin.test.mjs              协议行为测试（25 条）
-    run-all.mjs                  一次跑全部
-  build.ps1                      打包插件成 zip
+Dashboard -> Plugins -> ... -> Install plugin -> ZIP file
 ```
 
-## 为什么是「分支」而不是直接改官方皮肤
+**Skin** - download `streamline-crystal-<version>.zip` from Releases, then:
 
-streamline.js 是从 GitHub 自动下载的（`isBundled: false`，带更新跟踪），直接改它会被下次
-更新覆盖。所以复制成 `streamline-crystal`（id 独立、名字 "Streamline · CRYSTAL"），
-官方文件一个没动。改动只有三处：
+```
+Settings -> Skins -> install -> pick the ZIP
+```
 
-1. `index.html` 多一行 CSS、一行 `<script type="module">`；
-2. 新增 `src/modules/crystal-grinder-panel.js`；
-3. 新增 `src/css/crystal-grinder.css`。
+Both install from a ZIP; the skin can also be installed from a URL.
 
-## 浮动窗
+## Usage
 
-一个可拖动的浮动卡片（默认右上角，位置会记住），约 250×160：
-
-| 行 | 内容 |
+| Action | How |
 |---|---|
-| 1 | ⋮⋮ 配方名 · 1/10 ······ ‹ ›（右上角大按钮） |
-| 2 | ● 空闲/研磨中/未连接 · 启动方式 |
-| 3 | 研磨度（大字，点击进编辑）+ 转速 / 下豆（小字） |
-| 4 | SET（按需隐藏）｜ START ｜ STOP |
-| 5 | 绑定咖啡配方（按 ID 关联，只读显示名称） |
+| Open the editor | Tap the large grind number |
+| Change recipe | Swipe the panel left/right, or tap the arrows (top-right) |
+| Send values to the grinder | `SET` - hidden when "grind right after editing" is **Yes** |
+| Start / stop | `START` / `STOP` |
+| Move the panel | Drag the title row |
 
-- 没有独立的「编辑」按钮：点研磨度那个大数字进编辑。
-- 面板支持左右滑动翻配方（避开按钮和顶部拖动区），也可以点右上角的 ‹ ›。
+`START` stays locked after an edit until `SET` is pressed, unless the recipe is set to grind
+right after editing.
 
-- 状态取自蓝牙协议的 `SYS_STATE`：0 空闲、1 研磨中；未连接显示灰色。
-- 配方里的研磨度会同步到左栏「Grind」磁贴（调用皮肤自己的 `updateGrindValue`）。
-- 绑定列表直接读 `/api/v1/profiles`，选项值是 `profile:id`，显示 `profile.title`。
-- 编辑弹窗：一行一个参数（标签 + 40px 的 −/+ + 数值 + 步距按钮），约 370px 高，1280×800 不用滚动；
-  长按 −/+ 连加，步距 1/5/10/50 可切换；启动方式和即时研磨并排。
-- 中英双语：默认英文，跟随皮肤语言（`localStorage.language` 与 `streamline:languagechange` 事件）；
-  调试时可在 URL 上加 `?lang=zh` / `?lang=en` 强制切换。
+## How it works
 
-窗口里不放加减号和滑条，所有数值都在「编辑」弹窗里改。
+The grinder exposes six characteristics; every value is a big-endian `uint16`:
 
-- 「调参完成即时研磨 = 是」：SET 隐藏，保存即下发，START 立即可用。
-- 「调参完成即时研磨 = 否」：显示 SET，任何修改后 START 变灰，按过 SET 才解锁。
+| Characteristic | UUID suffix | Direction |
+|---|---|---|
+| Motor RPM `MT_RPM` | `...0101` | read / write / notify |
+| Bean feed `XD_RPM` | `...0102` | read / write / notify |
+| Start item `BOOT_SIGN` | `...0103` | write: 1 manual, 2 timer, 3 auto, 4 stop, 5 apply grind |
+| System state `SYS_STATE` | `...0104` | 0 idle, 1 grinding |
+| Current grind `SERVO_ANGLE` | `...0105` | read / notify |
+| Target grind `TF_ANGLE` | `...0106` | write, then `BOOT_SIGN = 5` |
 
-行为：
+Details and open questions are in [docs/PROTOCOL.md](docs/PROTOCOL.md); the REST/WebSocket
+surface a skin can use is in [docs/INTERFACE.md](docs/INTERFACE.md).
 
-- 配方 10 组，存在皮肤自己的 localStorage（`crystal-recipes-v1`）；出厂默认研磨度 500、下豆 20、转速 800。
-- `调参完成即时研磨 = 是`：改研磨度/转速/下豆立即下发；`否`：必须先按 SET 才下发，START 才解锁。
-- STOP 走 `PUT /api/v1/grinder/state/idle`；START 走插件的 `POST …/start {mode}`（1/2/3）。
-- 下豆档位走插件 `POST …/feed`（XD_RPM 0–150），Decaid 原生磨豆机接口没有这个字段。
-- 绑定咖啡配方只做关联/显示（按你的选择），不会动咖啡机。
-- 定时模式的时长由磨豆机自己决定，皮肤只发启动项 2。
+## Repository layout
 
-## 跑测试
+```
+crystal-grinder.reaplugin/   plugin: manifest.json, plugin.js
+skin/streamline-crystal/     skin: streamline.js fork + the CRYSTAL panel
+  src/modules/crystal-grinder-panel.js
+  src/css/crystal-grinder.css
+docs/                        protocol, interface, install, publish, upload guide
+test/                        protocol and manifest tests (Node, no Flutter needed)
+build.ps1                    builds both zips into dist/
+```
 
-不需要 Flutter，用 Node（任意 18+）直接跑：
+The skin is a two-line change to `index.html` plus two added files on top of streamline.js;
+everything else is upstream code.
+
+## Build and test
 
 ```powershell
+# both zips -> dist/
+./build.ps1
+
+# 32 tests, no Flutter required
 node test/run-all.mjs
 ```
 
-## 打包与发布
+## Data and settings
 
-```powershell
-.\build.ps1            # dist/ 下同时生成插件 zip 和皮肤 zip
-```
+- Streamline's own settings ride in Decaid's KV store (`streamlineSettings`), so a new skin on
+  the same machine inherits them automatically.
+- The panel's recipes are mirrored to the `crystalGrinder` KV namespace: a fresh skin adopts
+  them, while a skin that already has local recipes keeps (and republishes) its own.
 
-发布流程、GitHub Release 规则、以及"要不要发给官方"见 [docs/PUBLISH.md](docs/PUBLISH.md)。
+## Troubleshooting
 
-## 状态
+- **Plugin does not appear in Settings** - the plugin manager lives in the Dashboard, not in
+  Settings: leave the skin (window icon or `Alt+Space` -> *Back to Dashboard*, or the system
+  back gesture on Android) and open **Plugins** there.
+- **Grinder not discovered** - check the grinder is powered and advertising as `CRYSTAL-xxxx`,
+  then scan again from Devices. No pairing step is required.
+- **START is greyed out** - the recipe has "grind right after editing" set to *No* and its
+  values have not been sent yet: press `SET` first.
+- **Blank skin after an update** - restart Decaid. The skin is served from a local port and the
+  WebView caches modules aggressively; a restart reloads them.
 
-- [x] 插件：BLE 协议、启停、研磨度、转速
-- [x] 插件 0.2.0：`status` / `feed` / `start` 三个厂商接口
-- [x] 单元测试（32 条全过）
-- [x] 官方 streamline 皮肤分支 + 紧凑控制条（已设为默认皮肤）
-- [x] 真机连通：扫描 → 连接 → 读状态 → 写转速（未配对）
-- [ ] 真机 START/STOP、SET 下发（会动电机/舵机，等样机通电后验证）
-- [ ] 配方与 Decaid 冲煮记录联动（现在只是本地存储）
+## License
+
+GPL-3.0-or-later. The skin is derived from
+[allofmeng/streamline_project](https://github.com/allofmeng/streamline_project)
+(Copyright (C) 2025-2026 Decent Espresso, GPL-3.0-or-later); its notice is kept in
+`skin/streamline-crystal/LICENSE`.
